@@ -12,10 +12,18 @@ check_install_package() {
     fi
 }
 
+
+# Check if the first argument is 'build'
+if [ "$1" == "build" ]; then
+    build_flag=true
+else
+    build_flag=false
+fi
+
 # Check and install required packages
-check_install_package "docker.io"
-check_install_package "docker-compose"
-check_install_package "python3-pip"
+check_install_package 'docker.io'
+check_install_package 'docker-compose'
+check_install_package 'python3-pip'
 
 # Create Docker network if it doesn't exist
 if ! sudo docker network inspect threat_hawk_network &>/dev/null; then
@@ -132,17 +140,26 @@ EOF
         echo -e "\e[31m[SCRIPT] No requirements.txt file found for $repo. Skipping installation.\e[0m"
     fi
     
-    # Skip docker-compose up if repo is wurstmeister/kafka-docker
-    if [ "$repo" != "wurstmeister/kafka-docker" ]; then
-        echo -e "\e[31m[SCRIPT] Running docker-compose up for $repo...\e[0m"
-        sudo docker-compose up -d
-        if [ $? -ne 0 ]; then
-            echo -e "\e[31m[SCRIPT] Error: Failed to run docker-compose up for $repo\e[0m"
-            exit 1
-        fi
-    else
-        echo -e "\e[31m[SCRIPT] Skipping docker-compose up for wurstmeister/threathawk as ioc-aggregator builds kafka-docker.\e[0m"
-    fi
+   # Skip docker-compose up if repo is wurstmeister/kafka-docker
+   if [ "$repo" != "wurstmeister/kafka-docker" ]; then
+       if [ "$build_flag" = true ]; then
+           echo -e "\e[31m[SCRIPT] Running docker-compose build for $repo...\e[0m"
+           sudo docker-compose build
+           if [ $? -ne 0 ]; then
+               echo -e "\e[31m[SCRIPT] Error: Failed to run docker-compose build for $repo\e[0m"
+               exit 1
+           fi
+       fi
+
+       echo -e "\e[31m[SCRIPT] Running docker-compose up for $repo...\e[0m"
+       sudo docker-compose up -d
+       if [ $? -ne 0 ]; then
+           echo -e "\e[31m[SCRIPT] Error: Failed to run docker-compose up for $repo\e[0m"
+           exit 1
+       fi
+   else
+       echo -e "\e[31m[SCRIPT] Skipping docker-compose up for wurstmeister/threathawk as ioc-aggregator builds kafka-docker.\e[0m"
+fi
 
     # Change directory back to the main folder
     cd ..
